@@ -1,0 +1,41 @@
+{
+  "name": "lambda-pg-forwarder",
+  "license": "MIT",
+  "description": "An AWS Lambda function to resolve forwarding addresses by a PostgreSQL lookup.",
+  "version": "0.0.1",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack",
+    "deploy": "webpack",
+    "dist": "yarn deploy",
+    "lint": "eslint src/*.js",
+    "test": "istanbul cover _mocha -- --check-leaks --timeout 3000 --require babel-core/register"
+  },
+  "babel": {
+    "presets": [
+      [ "env", { "targets": { "node": "6.10" } } ],
+      "stage-3"
+    ]
+  },
+  "dependencies": {
+    "aws-lambda-ses-forwarder": "^4.2.0",
+    "aws-sdk": "^2.162.0",
+    "dotenv": "^4.0.0",
+    "pg": "^7.4.0"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "babel-preset-env": "^1.6.1",
+    "babel-preset-stage-3": "^6.24.1",
+    "eslint": "^4.12.1",
+    "eslint-config-airbnb": "^16.1.0",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-jsx-a11y": "^6.0.2",
+    "eslint-plugin-react": "^7.5.1",
+    "istanbul": "^0.4.5",
+    "mocha": "^4.0.1",
+    "webpack": "^3.9.1",
+    "zip-webpack-plugin": "^2.1.0"
+  }
+}
