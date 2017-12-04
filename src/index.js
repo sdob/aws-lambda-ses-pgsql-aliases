@@ -17,9 +17,6 @@ const client = new pg.Client();
 // Lambda. See: https://node-postgres.com/features/connecting
 client.connect();
 
-// Create a lookup function with this client
-const lookup = makeLookup(client);
-
 // These environment variables also need to be set in Lambda.
 const {
   FROM_EMAIL: fromEmail,
@@ -27,6 +24,7 @@ const {
   EMAIL_BUCKET: emailBucket,
   EMAIL_KEY_PREFIX: emailKeyPrefix,
   QUERY: query,
+  DOMAIN: domain,
 } = process.env;
 
 // Our config object is different from the base in aws-lambda-ses-forwarder,
@@ -40,43 +38,27 @@ const config = {
 };
 
 function transformRecipients(data) {
-  // eslint-disable-next-line no-param-reassign
-  data.originalRecipients = data.recipients;
+  // Create a lookup function with the client
+  const lookup = makeLookup(client);
+  const re = new RegExp(`@${domain}$`);
+  // data.log({ level: 'info', message: 'Original recipients', });
+  // data.log({ level: 'info', message: data.recipients });
+  data.originalRecipients = data.recipients; // eslint-disable-line no-param-reassign
   return Promise.all(data.recipients.map((origEmail) => {
-    data.log({
-      level: 'info',
-      message: `Performing lookup for ${origEmail}`,
-    });
-    return lookup([origEmail.replace(/@namrepus.net$/, '')])
+    data.log({ level: 'info', message: `Performing lookup for ${origEmail}` });
+    return lookup([origEmail.replace(re, '')])
       .then((value) => {
         const user_id = value && value.user_id ? value.user_id : value;
-        data.log({
-          level: 'info',
-          message: `Found ${origEmail} -> ${user_id}`,
-        });
+        // data.log({ level: 'info', message: `Found ${origEmail} -> ${user_id}`, });
         return user_id;
       });
   })).then((newRecipients) => {
-    data.log({
-      level: 'info',
-      message: 'Recipient list created',
-    });
+    // data.log({ level: 'info', message: 'Recipient list created' });
     // eslint-disable-next-line no-param-reassign
     data.recipients = newRecipients;
-    data.log({
-      level: 'info',
-      message: data.recipients,
-    });
+    // data.log({ level: 'info', message: data.recipients });
     return Promise.resolve(data);
   });
-}
-
-function fetchMessage(data) {
-  data.log({
-    level: 'info',
-    message: 'Calling baseFetchMessage',
-  });
-  return baseFetchMessage(data);
 }
 
 function handler(event, context, callback) {
@@ -84,10 +66,7 @@ function handler(event, context, callback) {
   // empty: See the documentation and SO discussion:
   // http://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-context.html#nodejs-prog-model-context-properties
   // https://stackoverflow.com/questions/41621776/why-does-aws-lambda-function-always-time-out
-  const newContext = {
-    ...context,
-    callbackWaitsForEmptyEventLoop: false,
-  };
+  context.callbackWaitsForEmptyEventLoop = false; // eslint-disable-line no-param-reassign
 
   // Set our overrides
   const overrides = {
@@ -95,12 +74,12 @@ function handler(event, context, callback) {
     steps: [
       baseParseEvent,
       transformRecipients,
-      fetchMessage,
+      baseFetchMessage,
       baseProcessMessage,
       baseSendMessage,
     ],
   };
-  baseHandler(event, newContext, callback, overrides);
+  return baseHandler(event, context, callback, overrides);
 }
 
 export { handler }; // eslint-disable-line import/prefer-default-export
