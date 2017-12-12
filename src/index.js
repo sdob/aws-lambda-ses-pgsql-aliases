@@ -17,15 +17,18 @@ const client = new pg.Client();
 // Lambda. See: https://node-postgres.com/features/connecting
 client.connect();
 
-// These environment variables also need to be set in Lambda.
+// These environment variables also need to be set in Lambda, with the exception
+// of EMAIL_KEY_PREFIX, which defaults to an empty string.
 const {
   FROM_EMAIL: fromEmail,
   SUBJECT_PREFIX: subjectPrefix,
   EMAIL_BUCKET: emailBucket,
-  EMAIL_KEY_PREFIX: emailKeyPrefix,
+  EMAIL_KEY_PREFIX,
   QUERY: query,
   DOMAIN: domain,
 } = process.env;
+
+const emailKeyPrefix = EMAIL_KEY_PREFIX || '';
 
 // Our config object is different from the base in aws-lambda-ses-forwarder,
 // because instead of a forwardMapping, we're using a PSQL lookup.
@@ -55,7 +58,11 @@ function transformRecipients(data) {
   })).then((newRecipients) => {
     // data.log({ level: 'info', message: 'Recipient list created' });
     // eslint-disable-next-line no-param-reassign
-    data.recipients = newRecipients;
+    data.recipients = newRecipients.filter(_ => !!_);
+    if (!data.recipients.length) {
+      data.log({ level: 'info', message: 'no lookup for that email' });
+      return Promise.reject(new Error('Error: Email sending failed.'));
+    }
     // data.log({ level: 'info', message: data.recipients });
     return Promise.resolve(data);
   });
